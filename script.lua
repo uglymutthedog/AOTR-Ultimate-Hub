@@ -1,1053 +1,332 @@
--- Configurable settings
-local Settings = {
-AutoFarmEnabled = false,
-InstantReloadEnabled = false,
-AutoLootEnabled = false,
-PrioritizeBossTitans = false,
-TargetDistance = 50,
-AttackCooldown = 0.4,
-StaminaThreshold = 15,
-RandomizationFactor = 0.2,
-FakeInputChance = 0.15,
-GearReloadInterval = 0.08,
-LootRange = 30,
-KillCount = 0}
--- Anti-cheat bypass variables
-local lastActionTime = tick()
-local actionInterval = 0.08
-local spoofedClientId = HttpService:GenerateGuid(false)
+-- AOTR Ultimate Hub
+-- Created by uglymutthedog
 
--- GUI Setup
-local function createGui()
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game.CoreGui
-ScreenGui.Name ="AOTRUltimateHub"
+-- Initialization
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 350, 0, 500)
-Frame.Position = UDim2.new(0.5, -175, 0.5, -250)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
+-- Create main GUI
+local AOTRHub = Instance.new("ScreenGui")
+AOTRHub.Name = "AOTRUltimateHub"
+AOTRHub.ResetOnSpawn = false
+AOTRHub.Parent = game:GetService("CoreGui")
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text ="AOTR Ultimate Raid Farm Hub"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.TextScaled = true
-Title.Parent = Frame
+-- Create main frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 300, 0, 350)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -175)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = AOTRHub
 
-local KillCounter = Instance.new("TextLabel")
-KillCounter.Size = UDim2.new(1, 0, 0, 30)
-KillCounter.Position = UDim2.new(0, 0, 0, 40)
-KillCounter.Text ="Kills: 0"
-KillCounter.TextColor3 = Color3.fromRGB(255, 255, 255)
-KillCounter.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-KillCounter.TextScaled = true
-KillCounter.Parent = Frame
-
-local function createToggle(name, callback)
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0.9, 0, 0, 40)
-ToggleButton.Position = UDim2.new(0.05, 0, 0, #Frame:GetChildren() * 45)
-ToggleButton.Text = name .. ": OFF"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextScaled = true
-ToggleButton.Parent = Frame
-
-local state = false
-ToggleButton.MouseButton1Click:Connect(function()
-state = not state
-ToggleButton.Text = name .. (state and": ON" or": OFF")
-callback(state)
-end)
-end
-
-local function createSlider(name, min, max, default, callback)
-local SliderFrame = Instance.new("Frame")
-SliderFrame.Size = UDim2.new(0.9, 0, 0, 40)
-SliderFrame.Position = UDim2.new(0.05, 0, 0, #Frame:GetChildren() * 45)
-SliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-SliderFrame.Parent = Frame
-
-local Label = Instance.new("TextLabel")
-Label.Size = UDim2.new(1, 0, 0, 20)
-Label.Text = name .. ":" .. default
-Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-Label.BackgroundTransparency = 1
-Label.TextScaled = true
-Label.Parent = SliderFrame
-
-local Slider = Instance.new("TextButton")
-Slider.Size = UDim2.new(1, 0, 0, 20)
-Slider.Position = UDim2.new(0, 0, 0, 20)
-Slider.Text = ""
-Slider.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-Slider.Parent = SliderFrame
-
-local value = default
-Slider.MouseButton1Down:Connect(function()
-local mouseConn
-mouseConn = UserInputService.InputChanged:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseMovement then
-local relativeX = math.clamp((input.Position.X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
-value = min + (max - min) * relativeX
-Label.Text = name .. ":" .. math.floor(value* 10) / 10
-callback(value)
-end
-end)
-UserInputService.InputEnded:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseButton1 then
-mouseConn:Disconnect()
-end
-end)
-end)
-end
-
-createToggle("Auto-Farm", function(state) Settings.AutoFarmEnabled = state end)
-createToggle("Instant Reload", function(state) Settings.InstantReloadEnabled = state end)
-createToggle("Auto-Loot", function(state) Settings.AutoLootEnabled = state end)
-createToggle("Prioritize Boss Titans", function(state) Settings.PrioritizeBossTitans = state end)
-createSlider("Target Distance", 10, 100, Settings.TargetDistance, function(value) Settings.TargetDistance = value end)
-createSlider("Attack Cooldown", 0.1, 1, Settings.AttackCooldown, function(value) Settings.AttackCooldown = value end)
-createSlider("Stamina Threshold", 10, 50, Settings.StaminaThreshold, function(value) Settings.StaminaThreshold = value end)
-createSlider("Loot Range", 10, 50, Settings.LootRange, function(value) Settings.LootRange = value end)
-
-return ScreenGui, KillCounter
-end
-
--- Create GUI and get kill counter reference
-local gui, KillCounter = createGui()
-
--- Find titans
-local function findNearestTitan()
-local closestTitan = nil
-local closestDistance = math.huge
-local playerPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
-
-for_, object in pairs(workspace:GetDescendants()) do
-if object:IsA("Model") and object:FindFirstChild("TitanNape") then
-local nape = object.TitanNape
-local distance = (nape.Position - playerPos).Magnitude
-local isBoss = object:FindFirstChild("BossTag") -- Hypothetical boss identifier
-if (Settings.PrioritizeBossTitans and isBoss) or (not Settings.PrioritizeBossTitans and distance < closestDistance and distance < Settings.TargetDistance) then
-closestTitan = nape
-closestDistance = distance
-end
-end
-end
-return closestTitan
-end
-
--- Move to target
-local function moveToTarget(targetPos)
-local character = LocalPlayer.Character
-if not character or not character.HumanoidRootPart then return end
-
-local humanoid = character.Humanoid
-local rootPart = character.HumanoidRootPart
-local direction = (targetPos - rootPart.Position).Unit
-
-local randomOffset = Vector3.new(
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor),
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor),
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor)
-)
-humanoid:Move(direction + randomOffset, true)
-
-local grappleEvent = ReplicatedStorage:FindFirstChild("GrappleEvent")
-if grappleEvent and tick() - lastActionTime > actionInterval then
-grappleEvent:FireServer(targetPos, { clientId = spoofedClientId })
-lastActionTime = tick()
-end
-end
-
--- Attack titan nape
-local function attackNape(titanNape)
-local attackRemote = ReplicatedStorage:FindFirstChild("AttackRemote")
-if attackRemote and tick() - lastActionTime > actionInterval then
-attackRemote:FireServer(titanNape, { clientId = spoofedClientId })
-lastActionTime = tick()
--- Increment kill count (assuming kill confirmation)
-Settings.KillCount = Settings.KillCount + 1
-KillCounter.Text ="Kills:" .. Settings.KillCount
-end
-end
-
--- Auto-loot
-local function autoLoot()
-if not Settings.AutoFarmEnabled then return end
-local playerPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
-for_, object in pairs(workspace:GetDescendants()) do
-if object:IsA("Part") and object.Name =="LootDrop" then -- Hypothetical loot identifier
-local distance = (object.Position - playerPos).Magnitude
-if distance < Settings.LootRange then
-local lootRemote = ReplicatedStorage:FindFirstChild("LootRemote") -- Replace with actual remote
-if lootRemote and tick() - lastActionTime > actionInterval then
-lootRemote:FireServer(object, { clientId = spoofedClientId })
-lastActionTime = tick()
-end
-end
-end
-end
-end
-
--- Check stamina
-local function checkStamina()
-local stamina = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("StaminaValue")
-return stamina and stamina.Value > Settings.StaminaThreshold
-end
-
--- Simulate fake input
-local function simulateFakeInput()
-if math.random() < Settings.FakeInputChance then
-local fakeMousePos = Vector2.new(
-math.random(0, UserInputService:GetMouseLocation().X),
-math.random(0, UserInputService:GetMouseLocation().Y)
-)
-local mouseEvent = ReplicatedStorage:FindFirstChild("MouseEvent")
-if mouseEvent then
-mouseEvent:FireServer(fakeMousePos)
-end
-end
-end
-
--- Instant gear reload
-local function instantGearReload()
-if not Settings.InstantReloadEnabled then return end
-local gearReloadRemote = ReplicatedStorage:FindFirstChild("GearReloadRemote")
-local gasValue = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("GasValue")
-if gearReloadRemote and tick() - lastActionTime > actionInterval then
-gearReloadRemote:FireServer({ clientId = spoofedClientId, gasAmount = 100 })
-lastActionTime = tick()
-end
-if gasValue then
-gasValue.Value = 100
-end
-end
-
--- Hook FireServer
-local oldFireServer
-oldFireServer = hookfunction(game:GetService("ReplicatedStorage").FireServer, function(remote, ...)
-local args = {...}
-if type(args[ трагитани1]) =="Vector3" then
-args[1] = args[1] + Vector3.new(
-math.random(-0.1, 0.1),
-math.random(-0.1, 0.1),
-math.random(-0.1, 0.1)
-)
-end
-args[#args + 1] = { clientId = spoofedClientId, timestamp = tick() + math.random(-0.05, 0.05) }
-return oldFireServer(remote, unpack(args))
-end)
-
--- Main loop
-RunService.Heartbeat:Connect(function()
-if not Settings.AutoFarmEnabled then return end
-if not LocalPlayer.Character or not LocalPlayer.Character.Humanoid then return end
-if not checkStamina() then return end
-
-simulateFakeInput()
-instantGearReload()
-autoLoot()
-
-local titanNape = findNearestTitan()
-if titanNape then
-moveToTarget(titanNape.Position)
-attackNape(titanNape)
-wait(Settings.AttackCooldown + math.random(0, Settings.RandomizationFactor))
-end
-end)
-
-print("AOTR Ultimate Raid Farm Hub Loaded")-- Configurable settings
-local Settings = {
-AutoFarmEnabled = false,
-InstantReloadEnabled = false,
-AutoLootEnabled = false,
-PrioritizeBossTitans = false,
-TargetDistance = 50,
-AttackCooldown = 0.4,
-StaminaThreshold = 15,
-RandomizationFactor = 0.2,
-FakeInputChance = 0.15,
-GearReloadInterval = 0.08,
-LootRange = 30,
-KillCount = 0}
--- Anti-cheat bypass variables
-local lastActionTime = tick()
-local actionInterval = 0.08
-local spoofedClientId = HttpService:GenerateGuid(false)
-
--- GUI Setup
-local function createGui()
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game.CoreGui
-ScreenGui.Name ="AOTRUltimateHub"
-
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 350, 0, 500)
-Frame.Position = UDim2.new(0.5, -175, 0.5, -250)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
+-- Create title bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text ="AOTR Ultimate Raid Farm Hub"
+Title.Name = "Title"
+Title.Size = UDim2.new(1, -30, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "AOTR Ultimate Hub"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.TextScaled = true
-Title.Parent = Frame
+Title.TextSize = 18
+Title.Font = Enum.Font.SourceSansBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
 
-local KillCounter = Instance.new("TextLabel")
-KillCounter.Size = UDim2.new(1, 0, 0, 30)
-KillCounter.Position = UDim2.new(0, 0, 0, 40)
-KillCounter.Text ="Kills: 0"
-KillCounter.TextColor3 = Color3.fromRGB(255, 255, 255)
-KillCounter.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-KillCounter.TextScaled = true
-KillCounter.Parent = Frame
+-- Close button
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -30, 0, 0)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 18
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.Parent = TitleBar
 
-local function createToggle(name, callback)
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0.9, 0, 0, 40)
-ToggleButton.Position = UDim2.new(0.05, 0, 0, #Frame:GetChildren() * 45)
-ToggleButton.Text = name .. ": OFF"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextScaled = true
-ToggleButton.Parent = Frame
+-- Main content
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Size = UDim2.new(1, 0, 1, -30)
+Content.Position = UDim2.new(0, 0, 0, 30)
+Content.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Content.BorderSizePixel = 0
+Content.Parent = MainFrame
 
-local state = false
-ToggleButton.MouseButton1Click:Connect(function()
-state = not state
-ToggleButton.Text = name .. (state and": ON" or": OFF")
-callback(state)
-end)
-end
+-- Add a simple feature - Speed Hack
+local SpeedHackFrame = Instance.new("Frame")
+SpeedHackFrame.Name = "SpeedHackFrame"
+SpeedHackFrame.Size = UDim2.new(0.9, 0, 0, 80)
+SpeedHackFrame.Position = UDim2.new(0.05, 0, 0.05, 0)
+SpeedHackFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SpeedHackFrame.BorderSizePixel = 0
+SpeedHackFrame.Parent = Content
 
-local function createSlider(name, min, max, default, callback)
-local SliderFrame = Instance.new("Frame")
-SliderFrame.Size = UDim2.new(0.9, 0, 0, 40)
-SliderFrame.Position = UDim2.new(0.05, 0, 0, #Frame:GetChildren() * 45)
-SliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-SliderFrame.Parent = Frame
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Name = "SpeedLabel"
+SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Text = "Player Speed"
+SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedLabel.TextSize = 16
+SpeedLabel.Font = Enum.Font.SourceSansBold
+SpeedLabel.Parent = SpeedHackFrame
 
-local Label = Instance.new("TextLabel")
-Label.Size = UDim2.new(1, 0, 0, 20)
-Label.Text = name .. ":" .. default
-Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-Label.BackgroundTransparency = 1
-Label.TextScaled = true
-Label.Parent = SliderFrame
+local SpeedToggle = Instance.new("TextButton")
+SpeedToggle.Name = "SpeedToggle"
+SpeedToggle.Size = UDim2.new(0.3, 0, 0, 30)
+SpeedToggle.Position = UDim2.new(0.1, 0, 0.5, 0)
+SpeedToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+SpeedToggle.Text = "Toggle"
+SpeedToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedToggle.TextSize = 14
+SpeedToggle.Font = Enum.Font.SourceSans
+SpeedToggle.Parent = SpeedHackFrame
 
-local Slider = Instance.new("TextButton")
-Slider.Size = UDim2.new(1, 0, 0, 20)
-Slider.Position = UDim2.new(0, 0, 0, 20)
-Slider.Text = ""
-Slider.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-Slider.Parent = SliderFrame
+local SpeedValue = Instance.new("TextBox")
+SpeedValue.Name = "SpeedValue"
+SpeedValue.Size = UDim2.new(0.3, 0, 0, 30)
+SpeedValue.Position = UDim2.new(0.6, 0, 0.5, 0)
+SpeedValue.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+SpeedValue.Text = "16"
+SpeedValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedValue.TextSize = 14
+SpeedValue.Font = Enum.Font.SourceSans
+SpeedValue.Parent = SpeedHackFrame
 
-local value = default
-Slider.MouseButton1Down:Connect(function()
-local mouseConn
-mouseConn = UserInputService.InputChanged:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseMovement then
-local relativeX = math.clamp((input.Position.X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
-value = min + (max - min) * relativeX
-Label.Text = name .. ":" .. math.floor(value* 10) / 10
-callback(value)
-end
-end)
-UserInputService.InputEnded:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseButton1 then
-mouseConn:Disconnect()
-end
-end)
-end)
-end
+-- Add another feature - Jump Power
+local JumpFrame = Instance.new("Frame")
+JumpFrame.Name = "JumpFrame"
+JumpFrame.Size = UDim2.new(0.9, 0, 0, 80)
+JumpFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
+JumpFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+JumpFrame.BorderSizePixel = 0
+JumpFrame.Parent = Content
 
-createToggle("Auto-Farm", function(state) Settings.AutoFarmEnabled = state end)
-createToggle("Instant Reload", function(state) Settings.InstantReloadEnabled = state end)
-createToggle("Auto-Loot", function(state) Settings.AutoLootEnabled = state end)
-createToggle("Prioritize Boss Titans", function(state) Settings.PrioritizeBossTitans = state end)
-createSlider("Target Distance", 10, 100, Settings.TargetDistance, function(value) Settings.TargetDistance = value end)
-createSlider("Attack Cooldown", 0.1, 1, Settings.AttackCooldown, function(value) Settings.AttackCooldown = value end)
-createSlider("Stamina Threshold", 10, 50, Settings.StaminaThreshold, function(value) Settings.StaminaThreshold = value end)
-createSlider("Loot Range", 10, 50, Settings.LootRange, function(value) Settings.LootRange = value end)
+local JumpLabel = Instance.new("TextLabel")
+JumpLabel.Name = "JumpLabel"
+JumpLabel.Size = UDim2.new(1, 0, 0, 30)
+JumpLabel.BackgroundTransparency = 1
+JumpLabel.Text = "Jump Power"
+JumpLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+JumpLabel.TextSize = 16
+JumpLabel.Font = Enum.Font.SourceSansBold
+JumpLabel.Parent = JumpFrame
 
-return ScreenGui, KillCounter
-end
+local JumpToggle = Instance.new("TextButton")
+JumpToggle.Name = "JumpToggle"
+JumpToggle.Size = UDim2.new(0.3, 0, 0, 30)
+JumpToggle.Position = UDim2.new(0.1, 0, 0.5, 0)
+JumpToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+JumpToggle.Text = "Toggle"
+JumpToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+JumpToggle.TextSize = 14
+JumpToggle.Font = Enum.Font.SourceSans
+JumpToggle.Parent = JumpFrame
 
--- Create GUI and get kill counter reference
-local gui, KillCounter = createGui()
+local JumpValue = Instance.new("TextBox")
+JumpValue.Name = "JumpValue"
+JumpValue.Size = UDim2.new(0.3, 0, 0, 30)
+JumpValue.Position = UDim2.new(0.6, 0, 0.5, 0)
+JumpValue.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+JumpValue.Text = "50"
+JumpValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+JumpValue.TextSize = 14
+JumpValue.Font = Enum.Font.SourceSans
+JumpValue.Parent = JumpFrame
 
--- Find titans
-local function findNearestTitan()
-local closestTitan = nil
-local closestDistance = math.huge
-local playerPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
+-- Add another feature - ESP
+local ESPFrame = Instance.new("Frame")
+ESPFrame.Name = "ESPFrame"
+ESPFrame.Size = UDim2.new(0.9, 0, 0, 80)
+ESPFrame.Position = UDim2.new(0.05, 0, 0.55, 0)
+ESPFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ESPFrame.BorderSizePixel = 0
+ESPFrame.Parent = Content
 
-for_, object in pairs(workspace:GetDescendants()) do
-if object:IsA("Model") and object:FindFirstChild("TitanNape") then
-local nape = object.TitanNape
-local distance = (nape.Position - playerPos).Magnitude
-local isBoss = object:FindFirstChild("BossTag") -- Hypothetical boss identifier
-if (Settings.PrioritizeBossTitans and isBoss) or (not Settings.PrioritizeBossTitans and distance < closestDistance and distance < Settings.TargetDistance) then
-closestTitan = nape
-closestDistance = distance
-end
-end
-end
-return closestTitan
-end
+local ESPLabel = Instance.new("TextLabel")
+ESPLabel.Name = "ESPLabel"
+ESPLabel.Size = UDim2.new(1, 0, 0, 30)
+ESPLabel.BackgroundTransparency = 1
+ESPLabel.Text = "Player ESP"
+ESPLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+ESPLabel.TextSize = 16
+ESPLabel.Font = Enum.Font.SourceSansBold
+ESPLabel.Parent = ESPFrame
 
--- Move to target
-local function moveToTarget(targetPos)
-local character = LocalPlayer.Character
-if not character or not character.HumanoidRootPart then return end
+local ESPToggle = Instance.new("TextButton")
+ESPToggle.Name = "ESPToggle"
+ESPToggle.Size = UDim2.new(0.6, 0, 0, 30)
+ESPToggle.Position = UDim2.new(0.2, 0, 0.5, 0)
+ESPToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+ESPToggle.Text = "Toggle ESP"
+ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+ESPToggle.TextSize = 14
+ESPToggle.Font = Enum.Font.SourceSans
+ESPToggle.Parent = ESPFrame
 
-local humanoid = character.Humanoid
-local rootPart = character.HumanoidRootPart
-local direction = (targetPos - rootPart.Position).Unit
-
-local randomOffset = Vector3.new(
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor),
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor),
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor)
-)
-humanoid:Move(direction + randomOffset, true)
-
-local grappleEvent = ReplicatedStorage:FindFirstChild("GrappleEvent")
-if grappleEvent and tick() - lastActionTime > actionInterval then
-grappleEvent:FireServer(targetPos, { clientId = spoofedClientId })
-lastActionTime = tick()
-end
-end
-
--- Attack titan nape
-local function attackNape(titanNape)
-local attackRemote = ReplicatedStorage:FindFirstChild("AttackRemote")
-if attackRemote and tick() - lastActionTime > actionInterval then
-attackRemote:FireServer(titanNape, { clientId = spoofedClientId })
-lastActionTime = tick()
--- Increment kill count (assuming kill confirmation)
-Settings.KillCount = Settings.KillCount + 1
-KillCounter.Text ="Kills:" .. Settings.KillCount
-end
-end
-
--- Auto-loot
-local function autoLoot()
-if not Settings.AutoFarmEnabled then return end
-local playerPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
-for_, object in pairs(workspace:GetDescendants()) do
-if object:IsA("Part") and object.Name =="LootDrop" then -- Hypothetical loot identifier
-local distance = (object.Position - playerPos).Magnitude
-if distance < Settings.LootRange then
-local lootRemote = ReplicatedStorage:FindFirstChild("LootRemote") -- Replace with actual remote
-if lootRemote and tick() - lastActionTime > actionInterval then
-lootRemote:FireServer(object, { clientId = spoofedClientId })
-lastActionTime = tick()
-end
-end
-end
-end
-end
-
--- Check stamina
-local function checkStamina()
-local stamina = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("StaminaValue")
-return stamina and stamina.Value > Settings.StaminaThreshold
-end
-
--- Simulate fake input
-local function simulateFakeInput()
-if math.random() < Settings.FakeInputChance then
-local fakeMousePos = Vector2.new(
-math.random(0, UserInputService:GetMouseLocation().X),
-math.random(0, UserInputService:GetMouseLocation().Y)
-)
-local mouseEvent = ReplicatedStorage:FindFirstChild("MouseEvent")
-if mouseEvent then
-mouseEvent:FireServer(fakeMousePos)
-end
-end
-end
-
--- Instant gear reload
-local function instantGearReload()
-if not Settings.InstantReloadEnabled then return end
-local gearReloadRemote = ReplicatedStorage:FindFirstChild("GearReloadRemote")
-local gasValue = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("GasValue")
-if gearReloadRemote and tick() - lastActionTime > actionInterval then
-gearReloadRemote:FireServer({ clientId = spoofedClientId, gasAmount = 100 })
-lastActionTime = tick()
-end
-if gasValue then
-gasValue.Value = 100
-end
-end
-
--- Hook FireServer
-local oldFireServer
-oldFireServer = hookfunction(game:GetService("ReplicatedStorage").FireServer, function(remote, ...)
-local args = {...}
-if type(args[ трагитани1]) =="Vector3" then
-args[1] = args[1] + Vector3.new(
-math.random(-0.1, 0.1),
-math.random(-0.1, 0.1),
-math.random(-0.1, 0.1)
-)
-end
-args[#args + 1] = { clientId = spoofedClientId, timestamp = tick() + math.random(-0.05, 0.05) }
-return oldFireServer(remote, unpack(args))
+-- Feature implementations
+local speedEnabled = false
+SpeedToggle.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    if speedEnabled then
+        SpeedToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        local speed = tonumber(SpeedValue.Text) or 16
+        
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = speed
+        end
+    else
+        SpeedToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        end
+    end
 end)
 
--- Main loop
-RunService.Heartbeat:Connect(function()
-if not Settings.AutoFarmEnabled then return end
-if not LocalPlayer.Character or not LocalPlayer.Character.Humanoid then return end
-if not checkStamina() then return end
-
-simulateFakeInput()
-instantGearReload()
-autoLoot()
-
-local titanNape = findNearestTitan()
-if titanNape then
-moveToTarget(titanNape.Position)
-attackNape(titanNape)
-wait(Settings.AttackCooldown + math.random(0, Settings.RandomizationFactor))
-end
+SpeedValue.FocusLost:Connect(function(enterPressed)
+    if enterPressed and speedEnabled then
+        local speed = tonumber(SpeedValue.Text) or 16
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = speed
+        end
+    end
 end)
 
-print("AOTR Ultimate Raid Farm Hub Loaded")-- Configurable settings
-local Settings = {
-AutoFarmEnabled = false,
-InstantReloadEnabled = false,
-AutoLootEnabled = false,
-PrioritizeBossTitans = false,
-TargetDistance = 50,
-AttackCooldown = 0.4,
-StaminaThreshold = 15,
-RandomizationFactor = 0.2,
-FakeInputChance = 0.15,
-GearReloadInterval = 0.08,
-LootRange = 30,
-KillCount = 0}
--- Anti-cheat bypass variables
-local lastActionTime = tick()
-local actionInterval = 0.08
-local spoofedClientId = HttpService:GenerateGuid(false)
-
--- GUI Setup
-local function createGui()
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game.CoreGui
-ScreenGui.Name ="AOTRUltimateHub"
-
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 350, 0, 500)
-Frame.Position = UDim2.new(0.5, -175, 0.5, -250)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text ="AOTR Ultimate Raid Farm Hub"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.TextScaled = true
-Title.Parent = Frame
-
-local KillCounter = Instance.new("TextLabel")
-KillCounter.Size = UDim2.new(1, 0, 0, 30)
-KillCounter.Position = UDim2.new(0, 0, 0, 40)
-KillCounter.Text ="Kills: 0"
-KillCounter.TextColor3 = Color3.fromRGB(255, 255, 255)
-KillCounter.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-KillCounter.TextScaled = true
-KillCounter.Parent = Frame
-
-local function createToggle(name, callback)
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0.9, 0, 0, 40)
-ToggleButton.Position = UDim2.new(0.05, 0, 0, #Frame:GetChildren() * 45)
-ToggleButton.Text = name .. ": OFF"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextScaled = true
-ToggleButton.Parent = Frame
-
-local state = false
-ToggleButton.MouseButton1Click:Connect(function()
-state = not state
-ToggleButton.Text = name .. (state and": ON" or": OFF")
-callback(state)
-end)
-end
-
-local function createSlider(name, min, max, default, callback)
-local SliderFrame = Instance.new("Frame")
-SliderFrame.Size = UDim2.new(0.9, 0, 0, 40)
-SliderFrame.Position = UDim2.new(0.05, 0, 0, #Frame:GetChildren() * 45)
-SliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-SliderFrame.Parent = Frame
-
-local Label = Instance.new("TextLabel")
-Label.Size = UDim2.new(1, 0, 0, 20)
-Label.Text = name .. ":" .. default
-Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-Label.BackgroundTransparency = 1
-Label.TextScaled = true
-Label.Parent = SliderFrame
-
-local Slider = Instance.new("TextButton")
-Slider.Size = UDim2.new(1, 0, 0, 20)
-Slider.Position = UDim2.new(0, 0, 0, 20)
-Slider.Text = ""
-Slider.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-Slider.Parent = SliderFrame
-
-local value = default
-Slider.MouseButton1Down:Connect(function()
-local mouseConn
-mouseConn = UserInputService.InputChanged:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseMovement then
-local relativeX = math.clamp((input.Position.X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
-value = min + (max - min) * relativeX
-Label.Text = name .. ":" .. math.floor(value* 10) / 10
-callback(value)
-end
-end)
-UserInputService.InputEnded:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseButton1 then
-mouseConn:Disconnect()
-end
-end)
-end)
-end
-
-createToggle("Auto-Farm", function(state) Settings.AutoFarmEnabled = state end)
-createToggle("Instant Reload", function(state) Settings.InstantReloadEnabled = state end)
-createToggle("Auto-Loot", function(state) Settings.AutoLootEnabled = state end)
-createToggle("Prioritize Boss Titans", function(state) Settings.PrioritizeBossTitans = state end)
-createSlider("Target Distance", 10, 100, Settings.TargetDistance, function(value) Settings.TargetDistance = value end)
-createSlider("Attack Cooldown", 0.1, 1, Settings.AttackCooldown, function(value) Settings.AttackCooldown = value end)
-createSlider("Stamina Threshold", 10, 50, Settings.StaminaThreshold, function(value) Settings.StaminaThreshold = value end)
-createSlider("Loot Range", 10, 50, Settings.LootRange, function(value) Settings.LootRange = value end)
-
-return ScreenGui, KillCounter
-end
-
--- Create GUI and get kill counter reference
-local gui, KillCounter = createGui()
-
--- Find titans
-local function findNearestTitan()
-local closestTitan = nil
-local closestDistance = math.huge
-local playerPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
-
-for_, object in pairs(workspace:GetDescendants()) do
-if object:IsA("Model") and object:FindFirstChild("TitanNape") then
-local nape = object.TitanNape
-local distance = (nape.Position - playerPos).Magnitude
-local isBoss = object:FindFirstChild("BossTag") -- Hypothetical boss identifier
-if (Settings.PrioritizeBossTitans and isBoss) or (not Settings.PrioritizeBossTitans and distance < closestDistance and distance < Settings.TargetDistance) then
-closestTitan = nape
-closestDistance = distance
-end
-end
-end
-return closestTitan
-end
-
--- Move to target
-local function moveToTarget(targetPos)
-local character = LocalPlayer.Character
-if not character or not character.HumanoidRootPart then return end
-
-local humanoid = character.Humanoid
-local rootPart = character.HumanoidRootPart
-local direction = (targetPos - rootPart.Position).Unit
-
-local randomOffset = Vector3.new(
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor),
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor),
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor)
-)
-humanoid:Move(direction + randomOffset, true)
-
-local grappleEvent = ReplicatedStorage:FindFirstChild("GrappleEvent")
-if grappleEvent and tick() - lastActionTime > actionInterval then
-grappleEvent:FireServer(targetPos, { clientId = spoofedClientId })
-lastActionTime = tick()
-end
-end
-
--- Attack titan nape
-local function attackNape(titanNape)
-local attackRemote = ReplicatedStorage:FindFirstChild("AttackRemote")
-if attackRemote and tick() - lastActionTime > actionInterval then
-attackRemote:FireServer(titanNape, { clientId = spoofedClientId })
-lastActionTime = tick()
--- Increment kill count (assuming kill confirmation)
-Settings.KillCount = Settings.KillCount + 1
-KillCounter.Text ="Kills:" .. Settings.KillCount
-end
-end
-
--- Auto-loot
-local function autoLoot()
-if not Settings.AutoFarmEnabled then return end
-local playerPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
-for_, object in pairs(workspace:GetDescendants()) do
-if object:IsA("Part") and object.Name =="LootDrop" then -- Hypothetical loot identifier
-local distance = (object.Position - playerPos).Magnitude
-if distance < Settings.LootRange then
-local lootRemote = ReplicatedStorage:FindFirstChild("LootRemote") -- Replace with actual remote
-if lootRemote and tick() - lastActionTime > actionInterval then
-lootRemote:FireServer(object, { clientId = spoofedClientId })
-lastActionTime = tick()
-end
-end
-end
-end
-end
-
--- Check stamina
-local function checkStamina()
-local stamina = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("StaminaValue")
-return stamina and stamina.Value > Settings.StaminaThreshold
-end
-
--- Simulate fake input
-local function simulateFakeInput()
-if math.random() < Settings.FakeInputChance then
-local fakeMousePos = Vector2.new(
-math.random(0, UserInputService:GetMouseLocation().X),
-math.random(0, UserInputService:GetMouseLocation().Y)
-)
-local mouseEvent = ReplicatedStorage:FindFirstChild("MouseEvent")
-if mouseEvent then
-mouseEvent:FireServer(fakeMousePos)
-end
-end
-end
-
--- Instant gear reload
-local function instantGearReload()
-if not Settings.InstantReloadEnabled then return end
-local gearReloadRemote = ReplicatedStorage:FindFirstChild("GearReloadRemote")
-local gasValue = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("GasValue")
-if gearReloadRemote and tick() - lastActionTime > actionInterval then
-gearReloadRemote:FireServer({ clientId = spoofedClientId, gasAmount = 100 })
-lastActionTime = tick()
-end
-if gasValue then
-gasValue.Value = 100
-end
-end
-
--- Hook FireServer
-local oldFireServer
-oldFireServer = hookfunction(game:GetService("ReplicatedStorage").FireServer, function(remote, ...)
-local args = {...}
-if type(args[ трагитани1]) =="Vector3" then
-args[1] = args[1] + Vector3.new(
-math.random(-0.1, 0.1),
-math.random(-0.1, 0.1),
-math.random(-0.1, 0.1)
-)
-end
-args[#args + 1] = { clientId = spoofedClientId, timestamp = tick() + math.random(-0.05, 0.05) }
-return oldFireServer(remote, unpack(args))
+local jumpEnabled = false
+JumpToggle.MouseButton1Click:Connect(function()
+    jumpEnabled = not jumpEnabled
+    if jumpEnabled then
+        JumpToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        local jump = tonumber(JumpValue.Text) or 50
+        
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.JumpPower = jump
+        end
+    else
+        JumpToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.JumpPower = 50
+        end
+    end
 end)
 
--- Main loop
-RunService.Heartbeat:Connect(function()
-if not Settings.AutoFarmEnabled then return end
-if not LocalPlayer.Character or not LocalPlayer.Character.Humanoid then return end
-if not checkStamina() then return end
-
-simulateFakeInput()
-instantGearReload()
-autoLoot()
-
-local titanNape = findNearestTitan()
-if titanNape then
-moveToTarget(titanNape.Position)
-attackNape(titanNape)
-wait(Settings.AttackCooldown + math.random(0, Settings.RandomizationFactor))
-end
+JumpValue.FocusLost:Connect(function(enterPressed)
+    if enterPressed and jumpEnabled then
+        local jump = tonumber(JumpValue.Text) or 50
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.JumpPower = jump
+        end
+    end
 end)
 
-print("AOTR Ultimate Raid Farm Hub Loaded")-- Configurable settings
-local Settings = {
-AutoFarmEnabled = false,
-InstantReloadEnabled = false,
-AutoLootEnabled = false,
-PrioritizeBossTitans = false,
-TargetDistance = 50,
-AttackCooldown = 0.4,
-StaminaThreshold = 15,
-RandomizationFactor = 0.2,
-FakeInputChance = 0.15,
-GearReloadInterval = 0.08,
-LootRange = 30,
-KillCount = 0}
--- Anti-cheat bypass variables
-local lastActionTime = tick()
-local actionInterval = 0.08
-local spoofedClientId = HttpService:GenerateGuid(false)
+-- ESP functionality
+local espEnabled = false
+local espObjects = {}
 
--- GUI Setup
-local function createGui()
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game.CoreGui
-ScreenGui.Name ="AOTRUltimateHub"
-
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 350, 0, 500)
-Frame.Position = UDim2.new(0.5, -175, 0.5, -250)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text ="AOTR Ultimate Raid Farm Hub"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.TextScaled = true
-Title.Parent = Frame
-
-local KillCounter = Instance.new("TextLabel")
-KillCounter.Size = UDim2.new(1, 0, 0, 30)
-KillCounter.Position = UDim2.new(0, 0, 0, 40)
-KillCounter.Text ="Kills: 0"
-KillCounter.TextColor3 = Color3.fromRGB(255, 255, 255)
-KillCounter.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-KillCounter.TextScaled = true
-KillCounter.Parent = Frame
-
-local function createToggle(name, callback)
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0.9, 0, 0, 40)
-ToggleButton.Position = UDim2.new(0.05, 0, 0, #Frame:GetChildren() * 45)
-ToggleButton.Text = name .. ": OFF"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextScaled = true
-ToggleButton.Parent = Frame
-
-local state = false
-ToggleButton.MouseButton1Click:Connect(function()
-state = not state
-ToggleButton.Text = name .. (state and": ON" or": OFF")
-callback(state)
-end)
+local function createESP(player)
+    if player == LocalPlayer then return end
+    
+    local esp = Instance.new("BillboardGui")
+    esp.Name = "ESP"
+    esp.Size = UDim2.new(0, 200, 0, 50)
+    esp.StudsOffset = Vector3.new(0, 3, 0)
+    esp.AlwaysOnTop = true
+    esp.Adornee = player.Character:WaitForChild("HumanoidRootPart")
+    
+    local espLabel = Instance.new("TextLabel")
+    espLabel.Size = UDim2.new(1, 0, 1, 0)
+    espLabel.BackgroundTransparency = 1
+    espLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    espLabel.TextStrokeTransparency = 0
+    espLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    espLabel.TextSize = 14
+    espLabel.Font = Enum.Font.SourceSansBold
+    espLabel.Text = player.Name
+    espLabel.Parent = esp
+    
+    espObjects[player.Name] = esp
+    esp.Parent = player.Character:WaitForChild("HumanoidRootPart")
+    
+    player.CharacterRemoving:Connect(function()
+        if espObjects[player.Name] then
+            espObjects[player.Name]:Destroy()
+            espObjects[player.Name] = nil
+        end
+    end)
 end
 
-local function createSlider(name, min, max, default, callback)
-local SliderFrame = Instance.new("Frame")
-SliderFrame.Size = UDim2.new(0.9, 0, 0, 40)
-SliderFrame.Position = UDim2.new(0.05, 0, 0, #Frame:GetChildren() * 45)
-SliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-SliderFrame.Parent = Frame
-
-local Label = Instance.new("TextLabel")
-Label.Size = UDim2.new(1, 0, 0, 20)
-Label.Text = name .. ":" .. default
-Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-Label.BackgroundTransparency = 1
-Label.TextScaled = true
-Label.Parent = SliderFrame
-
-local Slider = Instance.new("TextButton")
-Slider.Size = UDim2.new(1, 0, 0, 20)
-Slider.Position = UDim2.new(0, 0, 0, 20)
-Slider.Text = ""
-Slider.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-Slider.Parent = SliderFrame
-
-local value = default
-Slider.MouseButton1Down:Connect(function()
-local mouseConn
-mouseConn = UserInputService.InputChanged:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseMovement then
-local relativeX = math.clamp((input.Position.X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
-value = min + (max - min) * relativeX
-Label.Text = name .. ":" .. math.floor(value* 10) / 10
-callback(value)
-end
-end)
-UserInputService.InputEnded:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseButton1 then
-mouseConn:Disconnect()
-end
-end)
-end)
-end
-
-createToggle("Auto-Farm", function(state) Settings.AutoFarmEnabled = state end)
-createToggle("Instant Reload", function(state) Settings.InstantReloadEnabled = state end)
-createToggle("Auto-Loot", function(state) Settings.AutoLootEnabled = state end)
-createToggle("Prioritize Boss Titans", function(state) Settings.PrioritizeBossTitans = state end)
-createSlider("Target Distance", 10, 100, Settings.TargetDistance, function(value) Settings.TargetDistance = value end)
-createSlider("Attack Cooldown", 0.1, 1, Settings.AttackCooldown, function(value) Settings.AttackCooldown = value end)
-createSlider("Stamina Threshold", 10, 50, Settings.StaminaThreshold, function(value) Settings.StaminaThreshold = value end)
-createSlider("Loot Range", 10, 50, Settings.LootRange, function(value) Settings.LootRange = value end)
-
-return ScreenGui, KillCounter
-end
-
--- Create GUI and get kill counter reference
-local gui, KillCounter = createGui()
-
--- Find titans
-local function findNearestTitan()
-local closestTitan = nil
-local closestDistance = math.huge
-local playerPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
-
-for_, object in pairs(workspace:GetDescendants()) do
-if object:IsA("Model") and object:FindFirstChild("TitanNape") then
-local nape = object.TitanNape
-local distance = (nape.Position - playerPos).Magnitude
-local isBoss = object:FindFirstChild("BossTag") -- Hypothetical boss identifier
-if (Settings.PrioritizeBossTitans and isBoss) or (not Settings.PrioritizeBossTitans and distance < closestDistance and distance < Settings.TargetDistance) then
-closestTitan = nape
-closestDistance = distance
-end
-end
-end
-return closestTitan
-end
-
--- Move to target
-local function moveToTarget(targetPos)
-local character = LocalPlayer.Character
-if not character or not character.HumanoidRootPart then return end
-
-local humanoid = character.Humanoid
-local rootPart = character.HumanoidRootPart
-local direction = (targetPos - rootPart.Position).Unit
-
-local randomOffset = Vector3.new(
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor),
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor),
-math.random(-Settings.RandomizationFactor, Settings.RandomizationFactor)
-)
-humanoid:Move(direction + randomOffset, true)
-
-local grappleEvent = ReplicatedStorage:FindFirstChild("GrappleEvent")
-if grappleEvent and tick() - lastActionTime > actionInterval then
-grappleEvent:FireServer(targetPos, { clientId = spoofedClientId })
-lastActionTime = tick()
-end
-end
-
--- Attack titan nape
-local function attackNape(titanNape)
-local attackRemote = ReplicatedStorage:FindFirstChild("AttackRemote")
-if attackRemote and tick() - lastActionTime > actionInterval then
-attackRemote:FireServer(titanNape, { clientId = spoofedClientId })
-lastActionTime = tick()
--- Increment kill count (assuming kill confirmation)
-Settings.KillCount = Settings.KillCount + 1
-KillCounter.Text ="Kills:" .. Settings.KillCount
-end
-end
-
--- Auto-loot
-local function autoLoot()
-if not Settings.AutoFarmEnabled then return end
-local playerPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
-for_, object in pairs(workspace:GetDescendants()) do
-if object:IsA("Part") and object.Name =="LootDrop" then -- Hypothetical loot identifier
-local distance = (object.Position - playerPos).Magnitude
-if distance < Settings.LootRange then
-local lootRemote = ReplicatedStorage:FindFirstChild("LootRemote") -- Replace with actual remote
-if lootRemote and tick() - lastActionTime > actionInterval then
-lootRemote:FireServer(object, { clientId = spoofedClientId })
-lastActionTime = tick()
-end
-end
-end
-end
-end
-
--- Check stamina
-local function checkStamina()
-local stamina = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("StaminaValue")
-return stamina and stamina.Value > Settings.StaminaThreshold
-end
-
--- Simulate fake input
-local function simulateFakeInput()
-if math.random() < Settings.FakeInputChance then
-local fakeMousePos = Vector2.new(
-math.random(0, UserInputService:GetMouseLocation().X),
-math.random(0, UserInputService:GetMouseLocation().Y)
-)
-local mouseEvent = ReplicatedStorage:FindFirstChild("MouseEvent")
-if mouseEvent then
-mouseEvent:FireServer(fakeMousePos)
-end
-end
-end
-
--- Instant gear reload
-local function instantGearReload()
-if not Settings.InstantReloadEnabled then return end
-local gearReloadRemote = ReplicatedStorage:FindFirstChild("GearReloadRemote")
-local gasValue = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("GasValue")
-if gearReloadRemote and tick() - lastActionTime > actionInterval then
-gearReloadRemote:FireServer({ clientId = spoofedClientId, gasAmount = 100 })
-lastActionTime = tick()
-end
-if gasValue then
-gasValue.Value = 100
-end
-end
-
--- Hook FireServer
-local oldFireServer
-oldFireServer = hookfunction(game:GetService("ReplicatedStorage").FireServer, function(remote, ...)
-local args = {...}
-if type(args[ трагитани1]) =="Vector3" then
-args[1] = args[1] + Vector3.new(
-math.random(-0.1, 0.1),
-math.random(-0.1, 0.1),
-math.random(-0.1, 0.1)
-)
-end
-args[#args + 1] = { clientId = spoofedClientId, timestamp = tick() + math.random(-0.05, 0.05) }
-return oldFireServer(remote, unpack(args))
+ESPToggle.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    
+    if espEnabled then
+        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                createESP(player)
+            end
+        end
+        
+        Players.PlayerAdded:Connect(function(player)
+            if espEnabled then
+                player.CharacterAdded:Connect(function()
+                    if espEnabled then
+                        createESP(player)
+                    end
+                end)
+            end
+        end)
+    else
+        ESPToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        
+        for _, esp in pairs(espObjects) do
+            if esp then esp:Destroy() end
+        end
+        espObjects = {}
+    end
 end)
 
--- Main loop
-RunService.Heartbeat:Connect(function()
-if not Settings.AutoFarmEnabled then return end
-if not LocalPlayer.Character or not LocalPlayer.Character.Humanoid then return end
-if not checkStamina() then return end
-
-simulateFakeInput()
-instantGearReload()
-autoLoot()
-
-local titanNape = findNearestTitan()
-if titanNape then
-moveToTarget(titanNape.Position)
-attackNape(titanNape)
-wait(Settings.AttackCooldown + math.random(0, Settings.RandomizationFactor))
-end
+-- Close button functionality
+CloseButton.MouseButton1Click:Connect(function()
+    AOTRHub:Destroy()
+    
+    -- Clean up any loops or connections here
+    speedEnabled = false
+    jumpEnabled = false
+    espEnabled = false
+    
+    for _, esp in pairs(espObjects) do
+        if esp then esp:Destroy() end
+    end
+    espObjects = {}
 end)
 
-print("AOTR Ultimate Raid Farm Hub Loaded")
+-- Notify on load
+local notification = Instance.new("Message")
+notification.Text = "AOTR Ultimate Hub Loaded! Press K to toggle."
+notification.Parent = workspace
+game:GetService("Debris"):AddItem(notification, 3)
+
+-- Keybind to toggle the GUI
+local guiVisible = true
+UserInputService.InputBegan:Connect(function(input, processed)
+    if input.KeyCode == Enum.KeyCode.K and not processed then
+        guiVisible = not guiVisible
+        MainFrame.Visible = guiVisible
+    end
+end)
+
+print("AOTR Ultimate Hub loaded successfully!")
